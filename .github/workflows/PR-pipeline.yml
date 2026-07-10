@@ -1,7 +1,7 @@
 name: PR-pipeline-checks
 on:
   pull_request:
-      branches: [actions]
+      branches: [master]
       types: [opened, synchronize]
 
 jobs:

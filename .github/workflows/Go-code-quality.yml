@@ -1,0 +1,32 @@
+name: Go-code-quality
+on: 
+  workflow_call:
+    inputs:
+      go-version: { default: '1.23', type: string }
+      go-version-file: { required: true, type: string }
+      cache-dependency-path: { required: true, type: string }
+      code-path: { required: true, type: string } 
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v7
+      - name: go-setup
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version-file }}
+          cache-dependency-path: ${{ inputs.cache-dependency-path }}
+      - name: run foratting
+        run: go fmt main.go
+        working-directory: ${{ inputs.code-path }}
+      - name: run vet
+        run: go vet main.go
+        working-directory: ${{ inputs.code-path }}
+      - name: Go test
+        run: go test
+        working-directory: ${{ inputs.code-path }} 
+        
+   
+   

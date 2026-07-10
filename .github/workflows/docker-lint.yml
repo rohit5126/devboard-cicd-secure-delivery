@@ -1,0 +1,60 @@
+name: docker-linter
+on: 
+  workflow_call:
+    inputs:
+      frontend-dockerfile-dir: { required: true, type: string }
+      backend-dockerfile-dir: { required: true, type: string }
+    secrets:
+      docker_username: { required: true }
+      docker_password: { required: true }
+
+
+jobs:
+  docker-lint:
+    strategy:
+      matrix:
+        workdir: [ '${{ inputs.frontend-dockerfile-dir }}', '${{ inputs.backend-dockerfile-dir }}' ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v6
+      - name: Lint Dockerfile using Hadolint for ${{ matrix.workdir }}
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.workdir }}/Dockerfile
+
+      
+
+  docker-image-scan:
+    needs: docker-lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        workdir: [ '${{ inputs.frontend-dockerfile-dir }}', '${{ inputs.backend-dockerfile-dir }}' ]
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v6
+      - name: docker login
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_password }}
+          
+      - name: ${{ matrix.workdir }}-docker-build
+        run: docker build -t ${{ secrets.docker_username }}/devboard-${{ matrix.workdir }}:latest .
+        working-directory: ${{ matrix.workdir }}
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: '${{ secrets.docker_username }}/devboard-${{ matrix.workdir }}:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
+          skip-dirs: '**/bin'
+          skip-files: 'app/devboard-backend'
+          
+          
+        

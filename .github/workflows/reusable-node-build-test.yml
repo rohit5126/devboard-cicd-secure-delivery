@@ -1,0 +1,41 @@
+name: test-build
+on:  
+  workflow_call: 
+    inputs:
+      node-version: { required: false, default: '22', type: string }
+      package-path: { required: true, type: string }
+      run_tests: { required: false, default: true, type: boolean }
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v6
+      - name: setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache-dependency-path: ${{ inputs.package-path }}
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ${{ inputs.package-path }}
+
+      - name: testing
+        if: ${{ inputs.run_tests == true }}
+        run: npm test
+        working-directory: ${{ inputs.package-path }}
+
+      - name: test-result
+        if: failure()
+        run: |
+          echo "the test cases did not passed "
+          exit 1
+      - name: test-result
+        run: echo " test cases are passed for the build "
+        
+        
+  
+      
+
+  

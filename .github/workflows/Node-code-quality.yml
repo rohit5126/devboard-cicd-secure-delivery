@@ -1,0 +1,28 @@
+name: Node-code-quality
+on:
+  workflow_call:
+    inputs:
+      node-version: { default: '20', type: string }
+      package-path: { required: true, type: string }
+      code-path: { required: true, type: string }
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v7
+      - name: npm setup
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache-dependency-path: ${{ inputs.package-path }}
+      - name: npm install
+        run: npm install
+        working-directory: ${{ inputs.code-path }}
+      - name: linting-code
+        run: npm run lint
+        working-directory: ${{ inputs.code-path }}
+      - name: node test
+        run: npm run test
+        working-directory: ${{ inputs.code-path }} 
+        

@@ -1,0 +1,21 @@
+name: merge
+on:
+  push:
+    branches: [actions]
+jobs:
+  docker-Sonar-Scan:
+    uses: ./.github/workflows/Sonarcube.yml
+    with:
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+    secrets: 
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      
+  push-to-docker-Hub:
+    needs: [docker-Sonar-Scan]
+    uses: ./.github/workflows/docker-push.yml
+    with:
+      frontend-dockerfile-dir: frontend
+      backend-dockerfile-dir: backend
+    secrets: 
+      docker_username: ${{ vars.DOCKER_USER }}
+      docker_password: ${{ secrets.DOCKER_TOKEN }}

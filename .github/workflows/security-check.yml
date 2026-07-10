@@ -1,0 +1,56 @@
+name: dependency-check
+on: 
+  workflow_call:
+    inputs:
+      backend_workdir: { required: true, type: string }
+      frontend_workdir: { required: true, type: string }
+permissions:
+  contents: read
+jobs:
+  Go-dependecy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      
+      - name: Run govulncheck and export report
+        uses: golang/govulncheck-action@v1
+        with:
+          output-format: sarif
+          output-file: govulncheck-results.sarif
+          work-dir: ${{ inputs.backend_workdir }}
+
+      - name: Upload results to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Go-vulnerabilities-report
+          path: govulncheck-results.sarif
+          retention-days: 7
+          
+  Node-dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: code-checkout
+        uses: actions/checkout@v7
+        
+      - name: node-setup
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache-dependency-path: ${{ inputs.frontend_workdir }}
+          
+      - name: dependency check
+        run: |
+          npm audit > audit_report.txt || true
+        working-directory: ${{ inputs.frontend_workdir }}
+        
+      - name: report-artificats
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-vulnerabilities-report
+          path: ${{ inputs.frontend_workdir}}/audit_report.txt
+          retention-days: 7
+
+

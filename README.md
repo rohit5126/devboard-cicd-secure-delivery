@@ -1,226 +1,226 @@
-# DevBoard — Advanced (UI + Go + Postgres)
+# 🔐 DevBoard – End-to-End DevSecOps CI/CD Pipeline
 
-This is the same DevBoard UI as the `master` branch, but now the data comes
-from a **real backend** instead of fake in-memory data.
+A production-grade **DevSecOps CI/CD pipeline** implementing **automated code quality checks, security scanning, container validation, and secure deployment** using GitHub Actions.
 
-Three pieces talk to each other in the app:
-
-```
-browser  →  frontend (React)  →  backend (Go API)  →  database (Postgres)
-```
-
-- **frontend** — the React app. It also forwards anything starting with `/api`
-  to the backend.
-- **backend** — a small Go program that reads and writes the database.
-- **database** — Postgres, with some example projects and tasks loaded on first
-  start.
-
-There's no login and no AI here on purpose. The whole point is to *see how the
-pieces connect*.
+This project demonstrates a **complete Shift-Left + Shift-Right security approach** with **PR-based validation, modular CI workflows, and event-driven CD pipeline**.
 
 ---
 
-## What you need
+## 🚀 Key Highlights
 
-- **Docker** (with Docker Compose, which comes with Docker Desktop).
-- That's it. You do **not** need Node, Go, or Postgres installed — they all run
-  inside containers.
-
----
-
-## Part 1 — The manual way (do it by hand to understand it)
-
-Run all commands from this folder. We'll start the three pieces one by one, the
-hard way, so you can see exactly what Docker Compose does for you later.
-
-### Step 1: Create a network
-
-Containers can only find each other by name if they're on the **same network**.
-So first we make one:
-
-```bash
-docker network create devboard-net
-```
-
-### Step 2: Build the images
-
-The frontend and backend are *our* code, so we build an image for each. The
-database is not our code — it's the official Postgres image — so there's
-nothing to build for it.
-
-```bash
-docker build -t devboard-frontend ./frontend
-docker build -t devboard-backend ./backend
-```
-
-The first build downloads base images and compiles the code, so it can take a
-few minutes. Later builds are much faster.
-
-### Step 3: Run the database
-
-We name it `postgres`. The backend will look for it by that exact name. The
-`-v ./init/postgres:...` line loads the example data the first time it starts.
-
-```bash
-docker run -d --name postgres --network devboard-net \
-  -e POSTGRES_USER=devboard \
-  -e POSTGRES_PASSWORD=devboard \
-  -e POSTGRES_DB=devboard \
-  -v "$PWD/init/postgres":/docker-entrypoint-initdb.d:ro \
-  -p 5432:5432 \
-  postgres:16-alpine
-```
-
-### Step 4: Run the backend
-
-We name it `backend` (the frontend looks for this name). We also tell it how to
-reach the database with `POSTGRES_URL` — notice it uses the name `postgres`.
-
-```bash
-docker run -d --name backend --network devboard-net \
-  -e PORT=8080 \
-  -e POSTGRES_URL="postgres://devboard:devboard@postgres:5432/devboard?sslmode=disable" \
-  -p 8081:8080 \
-  devboard-backend
-```
-
-### Step 5: Run the frontend
-
-It serves the app on port 4173 inside the container; we map it to 8080 on your
-machine.
-
-```bash
-docker run -d --name frontend --network devboard-net \
-  -p 8080:4173 \
-  devboard-frontend
-```
-
-### Step 6: Open it and check
-
-Open **http://localhost:8080** in your browser — you should see the DevBoard
-dashboard with some example tasks. (If the page shows an error for a second on
-first load, the backend is still starting up — just refresh.)
-
-Then check the wiring from the terminal:
-
-```bash
-curl http://localhost:8081/health                      # backend says OK
-curl "http://localhost:8080/api/tasks?project_id=1"    # app → backend → database
-```
-
-### Step 7: Stop and clean up
-
-```bash
-docker rm -f frontend backend postgres
-docker network rm devboard-net
-```
-
-### The one thing to remember: names
-
-The backend finds the database using the name `postgres` (see `POSTGRES_URL`).
-The frontend finds the backend using the name `backend` (see
-`frontend/vite.config.js`). So those container **names must match**, and they
-only work because everything is on the same `devboard-net` network.
-
-That's a lot of typing, and you have to start them in the right order. This is
-exactly the problem Docker Compose solves.
+* 🔄 PR-based automated validation pipeline
+* 🔐 Integrated DevSecOps (SAST, Dependency Scan, Secret Scan, DAST)
+* 🐳 Docker linting, build & push automation
+* ⚡ Modular reusable GitHub Actions workflows
+* 🚀 Event-driven CD using `workflow_run`
+* 🛡️ OWASP ZAP runtime security testing
 
 ---
 
-## Part 2 — The easy way: Docker Compose
+## 🏗️ Pipeline Architecture
 
-Compose does everything from Part 1 — the network, the names, the order, the
-environment values — from one file (`docker-compose.yml`).
-
-First, create your settings file (one time only). Compose reads it to fill in
-passwords and ports, so the stack won't start without it:
-
-```bash
-cp .env.example .env
+```text
+Pull Request → CI Checks → Merge (CI) → Deploy → DAST Scan
 ```
-
-Then start everything with one command:
-
-```bash
-docker compose up --build
-```
-
-The first build can take a few minutes. When it's done, open
-**http://localhost:8080** in your browser.
-
-Stop it:
-
-```bash
-docker compose down
-```
-
-| Piece    | Open in browser / curl        | Notes                                   |
-| -------- | ----------------------------- | --------------------------------------- |
-| Frontend | http://localhost:8080         | the app; forwards `/api` to the backend |
-| Backend  | http://localhost:8081/health  | the Go API (the app uses it via `/api`) |
-| Postgres | localhost:5432                | user / password: `devboard` / `devboard`|
 
 ---
 
-## Part 3 — The shortcut: `make`
+## 🧪 PR Pipeline – `PR-pipeline-checks`
 
-You don't even have to remember the Compose commands. Run `make` to see what's
-available:
+Triggered on:
 
-```bash
-make           # list all commands
-make setup     # create your .env file (first time only)
-make up        # build and start everything
-make down      # stop everything
-make logs      # watch the logs
-make reset     # wipe the database and start fresh
-make smoke     # quick check that everything works
+```yaml
+pull_request:
+  branches: [master]
+  types: [opened, synchronize]
 ```
 
-`make up` creates `.env` for you automatically, so it's the simplest way to start.
+### 🔹 Checks Performed
 
-> `make` is optional. It's already available on Linux and macOS (on macOS you may
-> need Xcode Command Line Tools: `xcode-select --install`). On Windows, either use
-> WSL or just run the `docker compose` commands from Part 2 directly.
+✔ **Frontend Code Quality**
+
+* Node.js linting & validation
+
+✔ **Backend Code Quality**
+
+* Go code checks & dependency validation
+
+✔ **Secret Scanning**
+
+* Detects hardcoded secrets
+
+✔ **Dependency Security Check**
+
+* Vulnerability scanning for frontend & backend
+
+✔ **Docker Lint & Scan**
+
+* Validates Dockerfiles
+* Ensures secure image build practices
 
 ---
 
-## Settings live in `.env`
+### 💬 PR Automation
 
-All the changeable values (passwords, ports) live in one file. The first time,
-copy the example:
+After all checks pass, an automated comment is added:
 
-```bash
-cp .env.example .env     # or: make setup
-```
-
-`.env.example` is the template kept in git. Your real `.env` is ignored by git,
-so in a real project your secrets never get committed.
+> **All CI Checks Completed Successfully**
+> This pull request meets quality and security standards and is ready for review.
 
 ---
 
-## The API (for reference)
+## ⚙️ CI Pipeline – `merge` Workflow
 
-The browser calls these as `/api/...`; the backend serves them at the root.
+Triggered on:
 
-| Method | Path                      | What it does                          |
-| ------ | ------------------------- | ------------------------------------- |
-| GET    | `/projects`               | list projects                         |
-| POST   | `/projects`               | create a project                      |
-| GET    | `/tasks?project_id=N`     | list tasks in a project               |
-| POST   | `/tasks`                  | create a task                         |
-| PATCH  | `/tasks/:id`              | update a task (e.g. change status)    |
-| GET    | `/search?q=&project_id=N` | search tasks by title                 |
-| GET    | `/health`                 | health check                          |
-
-## Folder layout
-
+```yaml
+push:
+  branches: [master]
 ```
+
+### 🔹 Jobs
+
+#### 1. SonarQube Scan (SAST)
+
+* Runs static code analysis
+* Ensures code quality & maintainability
+
+#### 2. Docker Build & Push
+
+* Builds frontend & backend images
+* Pushes images to Docker Hub
+
+---
+
+## 🚀 CD Pipeline – `Devsecops-deploy.yml`
+
+Triggered via:
+
+```yaml
+workflow_run:
+  workflows: [merge]
+  types: completed
+```
+
+### 🔹 Jobs
+
+✔ **Deploy Application**
+
+* Uses reusable deployment workflow
+
+✔ **OWASP ZAP Scan (DAST)**
+
+* Runs after deployment
+* Performs runtime vulnerability testing
+
+---
+
+## 🔐 DevSecOps Coverage
+
+| Stage        | Security Implementation            |
+| ------------ | ---------------------------------- |
+| PR Stage     | SAST, Secret Scan, Dependency Scan |
+| Build Stage  | Docker Lint & Secure Build         |
+| CI Stage     | SonarQube Analysis                 |
+| Deploy Stage | Controlled Deployment              |
+| Runtime      | OWASP ZAP (DAST)                   |
+
+---
+
+## 📂 Repository Structure
+
+```bash
 .
-├── docker-compose.yml   starts frontend + backend + postgres together
-├── Makefile             short commands (make up, make down, ...)
-├── .env.example         template for settings (copy to .env)
-├── frontend/            React app (Vite). Serves the UI, forwards /api
-├── backend/             Go API (main.go + Dockerfile)
-└── init/postgres/       schema + example data, loaded on first start
+├── .github/workflows/
+│   ├── PR-pipeline-checks.yml
+│   ├── merge.yml
+│   ├── Devsecops-deploy.yml
+│   ├── Node-code-quality.yml
+│   ├── Go-code-quality.yml
+│   ├── secret-scanning.yml
+│   ├── security-check.yml
+│   ├── docker-lint.yml
+│   ├── Sonarcube.yml
+│   ├── docker-push.yml
+│   ├── deploy.yml
+│   ├── OWASP_DAST.yml
+│
+├── frontend/
+├── backend/
+└── README.md
 ```
+
+---
+
+## 🔄 Workflow Design
+
+This project follows modern DevOps best practices:
+
+* ✅ Shift-Left Security (PR validation)
+* ✅ Reusable workflows for modular design
+* ✅ CI/CD separation
+* ✅ Event-driven pipeline chaining
+* ✅ Automated PR feedback
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/rohit5126/devboard-cicd-secure-delivery.git
+cd devboard-cicd-secure-delivery
+```
+
+---
+
+### 2️⃣ Configure Secrets & Variables
+
+#### 🔐 Secrets
+
+* `SONAR_TOKEN`
+* `DOCKER_TOKEN`
+
+#### ⚙️ Variables
+
+* `SONAR_HOST_URL`
+* `DOCKER_USER`
+
+---
+
+### 3️⃣ Trigger Pipelines
+
+* Create PR → triggers **PR pipeline checks**
+* Merge → triggers **CI pipeline**
+* CI completion → triggers **CD pipeline automatically**
+
+---
+
+## 📊 Key Features
+
+✔ Full DevSecOps pipeline implementation
+✔ Automated PR validation & feedback
+✔ Multi-layer security checks
+✔ Docker-based build system
+✔ Real-world CI/CD architecture
+
+---
+
+
+## 🔮 Future Enhancements
+
+* ☸️ Kubernetes deployment (Helm)
+* 📊 Monitoring (Prometheus + Grafana)
+* 🔐 Secrets management (Vault)
+* 🏗️ Infrastructure as Code (Terraform)
+
+---
+
+## 🤝 Contributing
+
+Feel free to fork and enhance this pipeline with more tools or improvements.
+
+---
+
+⭐ **Star this repo if you found it useful!**
